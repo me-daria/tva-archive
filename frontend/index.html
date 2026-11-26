@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TVA Archive</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 860px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      background: #141218;
+      color: #f2eef7;
+    }
+    h1, h2 { margin-top: 0; }
+    .card {
+      background: #1f1b26;
+      border: 1px solid #352e42;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-bottom: 0.75rem;
+    }
+    input, button {
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid #4a405c;
+      font-size: 0.95rem;
+    }
+    input {
+      background: #141218;
+      color: #f2eef7;
+      flex: 1 1 160px;
+    }
+    button {
+      background: #7c5cff;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover { background: #6847f5; }
+    button.danger { background: #a83248; }
+    button.danger:hover { background: #8c2538; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.55rem 0.6rem;
+      border-bottom: 1px solid #2e283a;
+    }
+    .status {
+      min-height: 1.2rem;
+      color: #c8b8ff;
+      font-size: 0.9rem;
+    }
+    pre {
+      background: #141218;
+      padding: 0.75rem;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>TVA Archive</h1>
+
+  <div class="card">
+    <h2>Новий запис</h2>
+    <form id="add-form">
+      <div class="row">
+        <input id="code" placeholder="code (напр. TVA-01)" required />
+        <input id="branch" placeholder="branch (напр. 616)" required />
+        <input id="risk" type="number" step="any" placeholder="risk (число)" required />
+        <input id="note" placeholder="note (примітка)" />
+        <button type="submit">Додати</button>
+      </div>
+    </form>
+    <div id="status" class="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>Записи архіву</h2>
+    <div class="row">
+      <input id="filter-branch" placeholder="Фільтр за branch (або порожньо для всіх)" />
+      <button id="btn-load" type="button">Оновити</button>
+      <button id="btn-report" type="button">Звіт (/report)</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Code</th>
+          <th>Branch</th>
+          <th>Risk</th>
+          <th>Note</th>
+          <th>Дія</th>
+        </tr>
+      </thead>
+      <tbody id="items-body"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Звіт за гілками</h2>
+    <pre id="report-out">Натисніть «Звіт (/report)», щоб завантажити.</pre>
+  </div>
+
+  <script>
+    const API_URL = "https://api.tva-archive.pp.ua";
+    const statusEl = document.getElementById("status");
+    const bodyEl = document.getElementById("items-body");
+    const reportEl = document.getElementById("report-out");
+
+    function setStatus(msg) {
+      statusEl.textContent = msg;
+    }
+
+    async function loadItems() {
+      const branch = document.getElementById("filter-branch").value.trim();
+      const url = branch
+        ? `${API_URL}/items?branch=${encodeURIComponent(branch)}`
+        : `${API_URL}/items`;
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (!res.ok) {
+          setStatus(data.error || `Помилка ${res.status}`);
+          return;
+        }
+        renderItems(Array.isArray(data) ? data : []);
+        setStatus(`Завантажено записів: ${Array.isArray(data) ? data.length : 0}`);
+      } catch (err) {
+        setStatus(`Помилка запиту: ${err.message}`);
+      }
+    }
+
+    function renderItems(items) {
+      bodyEl.innerHTML = "";
+      for (const item of items) {
+        const tr = document.createElement("tr");
+        const id = item.id ?? "";
+        tr.innerHTML = `
+          <td>${escapeHtml(id)}</td>
+          <td>${escapeHtml(item.code ?? "")}</td>
+          <td>${escapeHtml(item.branch ?? "")}</td>
+          <td>${escapeHtml(item.risk ?? "")}</td>
+          <td>${escapeHtml(item.note ?? "")}</td>
+          <td></td>
+        `;
+        const btn = document.createElement("button");
+        btn.textContent = "Видалити";
+        btn.className = "danger";
+        btn.addEventListener("click", () => deleteItem(id));
+        tr.lastElementChild.appendChild(btn);
+        bodyEl.appendChild(tr);
+      }
+    }
+
+    async function deleteItem(id) {
+      try {
+        const res = await fetch(`${API_URL}/items/${id}`, { method: "DELETE" });
+        const data = await res.json();
+        if (!res.ok) {
+          setStatus(data.error || `Не вдалося видалити (${res.status})`);
+          return;
+        }
+        setStatus(`Видалено запис #${id}`);
+        await loadItems();
+      } catch (err) {
+        setStatus(`Помилка видалення: ${err.message}`);
+      }
+    }
+
+    async function loadReport() {
+      try {
+        const res = await fetch(`${API_URL}/report`);
+        const data = await res.json();
+        reportEl.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        reportEl.textContent = `Помилка звіту: ${err.message}`;
+      }
+    }
+
+    function escapeHtml(val) {
+      return String(val)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    document.getElementById("add-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payload = {
+        code: document.getElementById("code").value.trim(),
+        branch: document.getElementById("branch").value.trim(),
+        risk: Number(document.getElementById("risk").value),
+        note: document.getElementById("note").value.trim()
+      };
+      try {
+        const res = await fetch(`${API_URL}/items`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setStatus(data.error || `Помилка додавання (${res.status})`);
+          return;
+        }
+        e.target.reset();
+        setStatus(`Додано запис #${data.id ?? ""}`);
+        await loadItems();
+      } catch (err) {
+        setStatus(`Помилка запиту: ${err.message}`);
+      }
+    });
+
+    document.getElementById("btn-load").addEventListener("click", loadItems);
+    document.getElementById("btn-report").addEventListener("click", loadReport);
+
+    loadItems();
+  </script>
+</body>
+</html>

@@ -1,8 +1,10 @@
-from flask import Flask, request, jsonify
+﻿from flask import Flask, request, jsonify
+from flask_cors import CORS
 import storage
 import logic
 
 app = Flask(__name__)
+CORS(app, origins=["https://tva-archive.pp.ua"])
 storage.init()
 
 

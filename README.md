@@ -1,15 +1,13 @@
-# TVA Archive
+﻿# TVA Archive
 
 Вебсервіс на Flask і SQLite для обліку записів.
 
-## Запуск
+## Запуск сервера
 
-python app.py
+Запускати з теки проєкту (`tva-archive`) з активованим віртуальним оточенням (`venv`):
 
-## Приклади curl
+1. Спочатку запустити сервер `waitress`:
+   `waitress-serve --listen=127.0.0.1:8000 app:app`
 
-curl http://127.0.0.1:5000/items
-curl -X POST http://127.0.0.1:5000/items -H "Content-Type: application/json" -d '{"code":"TVA-01","branch":"alpha","risk":4.5,"note":"first"}'
-curl "http://127.0.0.1:5000/items?branch=alpha"
-curl -i http://127.0.0.1:5000/report
-curl -i -X DELETE http://127.0.0.1:5000/items/1
+2. Потім у другому терміналі запустити тунель `cloudflared`:
+   `cloudflared tunnel --url http://127.0.0.1:8000`

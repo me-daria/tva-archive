@@ -1,18 +1,15 @@
-# Архів TVA
+# TVA Archive
 
-Консольний облік часових аномалій та гілок часу для аналітиків TVA.
+Вебсервіс на Flask і SQLite для обліку записів.
 
 ## Запуск
-Запуск із теки проєкту (на Windows у Git Bash — через `py` або `python`):
 
-```bash
-py cli.py add TL-101 Alpha 15.5 "варіант Локі"
-py cli.py list
-py cli.py find Alpha
-py cli.py report
-py tests.py
-```
+python app.py
 
-## Перевірка та стійкість до помилок
-- Пошкоджені рядки або некоректне число в полі ризику пропускаються чи відхиляються з повідомленням про помилку без падіння програми.
-- Модульні тести запускаються командою `py tests.py`.
+## Приклади curl
+
+curl http://127.0.0.1:5000/items
+curl -X POST http://127.0.0.1:5000/items -H "Content-Type: application/json" -d '{"code":"TVA-01","branch":"alpha","risk":4.5,"note":"first"}'
+curl "http://127.0.0.1:5000/items?branch=alpha"
+curl -i http://127.0.0.1:5000/report
+curl -i -X DELETE http://127.0.0.1:5000/items/1

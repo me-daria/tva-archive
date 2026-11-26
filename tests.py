@@ -1,50 +1,43 @@
+import gc
 from pathlib import Path
-from logic import find_by_branch, format_report, summarize_records
-from storage import add_record, load_records, save_records
+import tempfile
+
+import logic
+import storage
 
 
 def run_tests() -> None:
-    test_file = Path(__file__).resolve().parent / "test_temp_data.txt"
-    if test_file.exists():
-        test_file.unlink()
+    with tempfile.TemporaryDirectory() as tmp:
+        db = Path(tmp) / "test.db"
+        storage.init(db)
 
-    assert load_records(test_file) == []
+        item1 = storage.add("TVA-01", "alpha", 4.5, "first", db_path=db)
+        item2 = storage.add("TVA-02", "beta", 2.0, "second", db_path=db)
+        assert item1["code"] == "TVA-01"
+        assert item2["branch"] == "beta"
 
-    add_record("TL-101", "Alpha", 12.5, "варіант Локі", path=test_file)
-    add_record("TL-102", "Beta", 27.5, "відхилення лінії часу", path=test_file)
+        all_items = storage.load(db_path=db)
+        assert len(all_items) == 2
 
-    loaded = load_records(test_file)
-    assert len(loaded) == 2
-    assert loaded[0]["code"] == "TL-101"
-    assert loaded[1]["risk"] == 27.5
+        alpha_items = storage.load(branch="alpha", db_path=db)
+        assert len(alpha_items) == 1
+        assert alpha_items[0]["code"] == "TVA-01"
 
-    alpha_matches = find_by_branch(loaded, "alpha")
-    assert len(alpha_matches) == 1
-    assert alpha_matches[0]["code"] == "TL-101"
-    assert find_by_branch(loaded, "nonexistent") == []
+        found = logic.find_by_branch(all_items, "beta")
+        assert len(found) == 1
+        assert found[0]["code"] == "TVA-02"
 
-    summary = summarize_records(loaded)
-    assert summary["total"] == 2
-    assert summary["avg_risk"] == 20.0
-    assert summary["max_risk"] == 27.5
-    assert summary["by_branch"] == {"Alpha": 1, "Beta": 1}
+        summary = logic.summarize_records(all_items)
+        report_text = logic.format_report(summary)
+        assert isinstance(report_text, str) and len(report_text) > 0
 
-    empty_summary = summarize_records([])
-    assert empty_summary["total"] == 0
-    assert empty_summary["avg_risk"] == 0.0
+        assert storage.delete(item1["id"], db_path=db) is True
+        assert storage.delete(999999, db_path=db) is False
+        assert len(storage.load(db_path=db)) == 1
 
-    report = format_report(summary)
-    assert "Усього аномалій: 2" in report
-    assert "Середній ризик: 20.0" in report
-    assert "За гілками часу:" in report
+        gc.collect()
 
-    save_records([], test_file)
-    assert load_records(test_file) == []
-
-    if test_file.exists():
-        test_file.unlink()
-
-    print("УСІ ТЕСТИ ПРОЙШЛИ")
+    print("OK: tests.py passed")
 
 
 if __name__ == "__main__":

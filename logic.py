@@ -1,3 +1,10 @@
+def find_by_branch(records: list[dict], branch_query: str) -> list[dict]:
+    needle = branch_query.strip().lower()
+    if not needle:
+        return []
+    return [r for r in records if needle in str(r.get("branch", "")).lower()]
+
+
 def summarize_records(records: list[dict]) -> dict:
     total = len(records)
     if total == 0:

@@ -1,5 +1,5 @@
 from pathlib import Path
-from logic import format_report, summarize_records
+from logic import find_by_branch, format_report, summarize_records
 from storage import add_record, load_records, save_records
 
 
@@ -18,15 +18,25 @@ def run_tests() -> None:
     assert loaded[0]["code"] == "TL-101"
     assert loaded[1]["risk"] == 27.5
 
+    alpha_matches = find_by_branch(loaded, "alpha")
+    assert len(alpha_matches) == 1
+    assert alpha_matches[0]["code"] == "TL-101"
+    assert find_by_branch(loaded, "nonexistent") == []
+
     summary = summarize_records(loaded)
     assert summary["total"] == 2
     assert summary["avg_risk"] == 20.0
     assert summary["max_risk"] == 27.5
     assert summary["by_branch"] == {"Alpha": 1, "Beta": 1}
 
+    empty_summary = summarize_records([])
+    assert empty_summary["total"] == 0
+    assert empty_summary["avg_risk"] == 0.0
+
     report = format_report(summary)
     assert "Усього аномалій: 2" in report
     assert "Середній ризик: 20.0" in report
+    assert "За гілками часу:" in report
 
     save_records([], test_file)
     assert load_records(test_file) == []

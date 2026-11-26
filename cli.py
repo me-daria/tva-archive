@@ -1,5 +1,5 @@
 import sys
-from logic import format_report, summarize_records
+from logic import find_by_branch, format_report, summarize_records
 from storage import add_record, load_records
 
 
@@ -9,6 +9,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Використання:")
         print("  python cli.py add <КОД> <ГІЛКА> <РИЗИК> <ПРИМІТКА>")
         print("  python cli.py list")
+        print("  python cli.py find <ГІЛКА>")
         print("  python cli.py report")
         return 0
 
@@ -33,6 +34,19 @@ def main(argv: list[str] | None = None) -> int:
             print("Архів TVA порожній.")
             return 0
         for r in records:
+            print(f"[{r['code']}] Гілка: {r['branch']} | Ризик: {r['risk']} | {r['note']}")
+        return 0
+
+    if cmd == "find":
+        if len(args) < 2:
+            print("Помилка: вкажіть гілку для пошуку, наприклад: python cli.py find Alpha")
+            return 1
+        query = " ".join(args[1:])
+        matches = find_by_branch(load_records(), query)
+        if not matches:
+            print(f"Записів за гілкою '{query}' не знайдено.")
+            return 0
+        for r in matches:
             print(f"[{r['code']}] Гілка: {r['branch']} | Ризик: {r['risk']} | {r['note']}")
         return 0
 
